@@ -18,7 +18,7 @@ U-Net 的模型结构如下图所示，U-Net 是一个非常优雅的网络，�
 
 ## PyTorch Implementation
 
-U-Net 的 PyTorch 实现代码如下，在这个版本的 U-Net 实现中，输入的图片和输出的分割预测结果的空间维度是相同的，因为在右侧扩展路径与左侧对应阶段输出的结合，采用了填充的fang'shi
+U-Net 的 PyTorch 实现代码如下，在这个版本的 U-Net 实现中，输入的图片和输出的分割预测结果的空间维度是相同的，因为在右侧扩展路径与左侧对应阶段输出的结合，采用了填充的方式，具体代码参考了 **milesial** 的实现，github 仓库链接：https://github.com/milesial/Pytorch-UNet。
 
 ```python
 import torch

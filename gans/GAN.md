@@ -65,3 +65,162 @@ Link: [Generative Adversarial Networks](https://papers.nips.cc/paper_files/paper
 
 
 
+## PyTorch Implementation
+
+GAN 的 PyTorch 实现代码如下，下面的代码中，GAN 的生成器和辨别器均定义为**多层感知机**（MultiLayer Perceptron），`train` 函数给出了 GAN 的训练代码。
+
+```python
+class Discriminator(nn.Module):
+    """
+    Disrcminator in GAN.
+    
+    Model Architecture: [affine - leaky relu - dropout] x 3 - affine - sigmoid
+    """
+    def __init__(self, image_shape: tuple[int, int, int]) -> None:
+        """Initialize Discriminator in GAN.
+
+        Args:
+            image_shape(tuple[int, int, int]): shape of image.
+        """
+        super(Discriminator, self).__init__()
+        C, H, W = image_shape
+        image_size = C * H * W
+        self.model = nn.Sequential(
+            nn.Linear(image_size, 512), nn.LeakyReLU(0.2), nn.Dropout(0.3),
+            nn.Linear(512, 256), nn.LeakyReLU(0.2), nn.Dropout(0.3),
+            nn.Linear(256, 128), nn.LeakyReLU(0.2), nn.Dropout(0.3),
+            nn.Linear(128, 1), nn.Sigmoid())
+
+    def forward(self, images: Tensor) -> Tensor:
+        """Forward pass in Discriminator.
+
+        Args:
+            images(Tensor): input images, of shape (N, C, H, W)
+
+        Returns:
+            Tensor: probabilities for input images to be real data, of shape (N, 1).
+        """
+        images = images.view(images.size(0), -1)
+        return self.model(images)
+
+
+class Generator(nn.Module):
+    """
+    Generator in GAN.
+
+    Model Architecture: [affine - batchnorm - relu] x 4 - affine - tanh
+    """
+    def __init__(self, image_shape: tuple[int, int, int], latent_dim: int) -> None:
+        """Initialize Generator in GAN.
+
+        Args:
+            image_shape(tuple[int, int, int]): shape of image.
+            latent_dim(int): dimensionality of the latent space.
+        """
+        super(Generator, self).__init__()
+        C, H, W = image_shape
+        image_size = C * H * W
+        self.image_shape = image_shape
+        self.model = nn.Sequential(
+            nn.Linear(latent_dim, 128), nn.BatchNorm1d(128), nn.ReLU(),
+            nn.Linear(128, 256), nn.BatchNorm1d(256), nn.ReLU(),
+            nn.Linear(256, 512), nn.BatchNorm1d(512), nn.ReLU(),
+            nn.Linear(512, 1024), nn.BatchNorm1d(1024), nn.ReLU(),
+            nn.Linear(1024, image_size), nn.Tanh())
+    
+    def forward(self, z: Tensor) -> Tensor:
+        """Forward pass in Generator.
+
+        Args:
+            z(Tensor): latent variables of shape (N, D) that sample from a distribution.
+
+        Returns:
+            Tensor: fake images produced by Generator.
+        """
+        images: Tensor = self.model(z)
+        return images.view(-1, *self.image_shape)
+
+def train(args: Namespace, 
+          G: Generator, D: Discriminator, 
+          data_loader: DataLoader) -> None:
+    """Train Generator and Discriminator.
+
+    Args:
+        args(Namespace): arguments.
+        G(Generator): Generator in GAN.
+        D(Discriminator): Discriminator in GAN.
+    """
+    writer = SummaryWriter(os.path.join(args.logdir, args.dataset))
+
+    # generate fixed noise for sampling.
+    fixed_noise = torch.rand(64, args.latent_dim).to(device)
+
+    # Loss and optimizer.
+    criterion = nn.BCELoss().to(device)
+    optimizer_G = torch.optim.Adam(G.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
+    optimizer_D = torch.optim.Adam(D.parameters(), lr=args.lr, betas=(args.beta1, args.beta2))
+
+    # Start training.
+    for epoch in range(args.num_epochs):
+        total_d_loss = total_g_loss = 0
+        for images, _ in data_loader:
+            m = images.size(0)
+            images: Tensor = images.to(device)
+            images = images.view(m, -1)
+            # Create real and fake labels.
+            real_labels = torch.ones(m, 1).to(device)
+            fake_labels = torch.zeros(m, 1).to(device)
+            # ================================================================== #
+            #                      Train the discriminator                       #
+            # ================================================================== #
+
+            # Forward pass
+            outputs = D(images)
+            d_loss_real: Tensor = criterion(outputs, real_labels)
+            
+            z = torch.rand(m, args.latent_dim).to(device)
+            fake_images: Tensor = G(z).detach()
+            outputs = D(fake_images)
+            d_loss_fake: Tensor = criterion(outputs, fake_labels)
+
+            # Backward pass
+            d_loss: Tensor = d_loss_real + d_loss_fake
+            optimizer_D.zero_grad()
+            d_loss.backward()
+            optimizer_D.step()
+            total_d_loss += d_loss
+
+            # ================================================================== #
+            #                        Train the generator                         #
+            # ================================================================== #
+            
+            # Forward pass
+            z = torch.rand(images.size(0), args.latent_dim).to(device)
+            fake_images: Tensor = G(z)
+            outputs = D(fake_images)
+            
+            # Backward pass
+            g_loss: Tensor = criterion(outputs, real_labels)
+            optimizer_G.zero_grad()
+            g_loss.backward()
+            optimizer_G.step()
+            total_g_loss += g_loss
+        print(f'''
+=====================================
+Epoch: [{epoch + 1}/{args.num_epochs}]
+Discriminator Loss: {total_d_loss / len(data_loader):.4f}
+Generator Loss: {total_g_loss / len(data_loader):.4f}
+=====================================''')
+        # Log Discriminator and Generator loss.
+        writer.add_scalar('Discriminator Loss', total_d_loss / len(data_loader), epoch + 1)
+        writer.add_scalar('Generator Loss', total_g_loss / len(data_loader), epoch + 1)
+        fake_images: Tensor = G(fixed_noise)
+        img_grid = make_grid(denormalize(fake_images), nrow=8, padding=2)
+        writer.add_image('Fake Images', img_grid, epoch + 1)
+        if (epoch + 1) % args.interval == 0:
+            save_image(img_grid, os.path.join(args.sample_dir, args.dataset, f'fake_images_{epoch + 1}.png'))
+    # Save the model checkpoints.
+    torch.save(G.state_dict(), os.path.join(args.ckpt_dir, args.dataset, 'G.ckpt'))
+    torch.save(D.state_dict(), os.path.join(args.ckpt_dir, args.dataset, 'D.ckpt'))
+```
+

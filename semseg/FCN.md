@@ -47,7 +47,7 @@ Link: [Fuuly Convolutional Networks for Semantic Segmentation](http://arxiv.org/
 
 FCN 的官方**代码链接**：https://github.com/shelhamer/fcn.berkeleyvision.org
 
-FCN-32s、FCN-16s 和 FCN-8s 不会重头开始训练模型，它们都使用了**预训练**的 VGG-16 模型，丢弃
+FCN-32s、FCN-16s 和 FCN-8s 不会重头开始训练模型，它们都使用了**预训练**的 VGG-16 模型。
 
 
 

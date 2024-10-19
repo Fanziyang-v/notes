@@ -37,5 +37,5 @@ Link: [Chain-of-Thought Prompting Elicits Reasoning in Large Language Models](ht
 
 ![Few-shot exemplars of MWP](./assets/few-shot-exemplars-of-mwp.png)
 
-此外，根据论文中提供的实验结果，**思维链提示只有在模型的规模达到一定的程度时才能够获得性能提升**。
+根据论文中提供的实验结果，**思维链提示只有在模型的规模达到一定的程度时才能够获得性能提升**。
 

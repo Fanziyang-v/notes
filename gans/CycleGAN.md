@@ -30,7 +30,7 @@ Link: [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Ne
 
 ### Formulation
 
-我们的目标是在给定训练样本 $\lbrace x_1, x_2,\dots, x_N\rbrace$（其中 $x_i\in X$） 以及 $\lbrace y_1, y_2,\dots, y_M\rbrace$（其中 $y_j\in Y$）的情况下**学习两个域 X 和 Y 之间的映射函数**。Cycle GAN 包含**两个生成器**（$G:X \to Y$、 $F: Y \to X$），此外还引入了**两个辨别器** Dx 和 Dy，辨别器 Dx 用来区分真实数据 **x** 和假数据 **F(y)**，辨别器 Dy 用来区分真实数据 **y** 和假数据 **G(x)**。
+我们的目标是在给定训练样本 $\lbrace x_1, x_2,\dots, x_N\rbrace$（其中 $x_i\in X$） 以及 $\lbrace y_1, y_2,\dots, y_M\rbrace$（其中 $y_j\in Y$）的情况下**学习两个域 X 和 Y 之间的映射函数**。Cycle GAN 包含**两个生成器**（ $G:X \to Y$ 以及 $F: Y \to X$），此外还引入了**两个辨别器** Dx 和 Dy，辨别器 Dx 用来区分真实数据 **x** 和假数据 **F(y)**，辨别器 Dy 用来区分真实数据 **y** 和假数据 **G(x)**。
 
 ![Cycle GAN method](./assets/Cycle-GAN-Method.png)
 
@@ -39,6 +39,7 @@ Link: [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Ne
 ### Loss Functions
 
 完整的损失函数包含两个部分：**对抗损失和循环一致性损失**。
+
 $$
 L(G,F,D_X,D_Y)=L_{GAN}(G,D_Y,X,Y)+L_{GAN}(F,D_X,Y,X)+\lambda L_{cyc}(G,F)
 $$
@@ -47,16 +48,20 @@ $$
 #### Adversarial Loss
 
 原始 [GAN](https://papers.nips.cc/paper_files/paper/2014/hash/5ca3e9b122f61f8f06494c97b1afccf3-Abstract.html) 的**损失函数**（mini-max loss）为：
+
 $$
 L_{GAN}(G,D_Y,X,Y)=E_{y}[\log D_Y(y)]+E_x[\log(1-D_Y(G(x)))]
 $$
 对于生成器而言，要**最小化** $L_{GAN}$，对于辨别器而言，要**最大化** $L_{GAN}$。
 
 在实际的实现中，使用的是[**最小二乘损失**](http://arxiv.org/abs/1611.04076)（Least-Squares Loss），这种使得训练更加稳定，生成图片的质量更高。特别地，**生成器需要最小化**：
+
 $$
 E_x[(D(G(x)) - 1)^2]
 $$
+
 **辨别器需要最小化**：
+
 $$
 E_y[(D(y)-1)^2]+E_x[D(G(x))^2]
 $$
@@ -65,6 +70,7 @@ $$
 #### Cycle Consistency Loss
 
 仅仅通过对抗损失，生成器可以学习到两个数据分布之间的映射关系，**但是不能确保生成的结果与输入是配对的**。**循环一致性损失 **用来降低这种不配对的可能性，循环一致性损失为：
+
 $$
 L_{cyc}(G,F)=E_x[||F(G(x)) - x||_1]+E_y[||G(F(y))-y||_1]
 $$
@@ -77,9 +83,11 @@ $$
 #### Identity Mapping Loss
 
 通过添加一个**等值映射损失**对于保留输入和输出之间的颜色一致性等具有帮助。
+
 $$
 L_{identity}(G,F)=E_x[||G(y)-y||_1]+E_y[||F(x)-x||_1]
 $$
+
 下图是原图 CycleGAN 生成的结果以及结合了等值映射损失生成的结果对比，可以观察到添加了等值映射损失后，生成的图片与原图的颜色具有**一致性**，而CycleGAN 则缺乏这种能力。
 
 ![Identity mapping loss](./assets/Cycle-GAN-identiy-mapping-loss.png)
